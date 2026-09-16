@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The IPO Ledger — Live NSE & BSE Tracker</title>
+<meta name="description" content="Track GMP, subscription windows and listing-day performance for every Mainboard and SME IPO on NSE and BSE.">
+<meta name="theme-color" content="#0d1420">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.svg">
+<link rel="icon" href="icon-192.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#0d1420;
+    --paper-raised:#121b2b;
+    --paper-line:#233047;
+    --ink:#e9edf5;
+    --ink-dim:#9aa7bd;
+    --ink-faint:#6b7690;
+    --gold:#d6a940;
+    --gold-dim:#8a7439;
+    --up:#3ecf8e;
+    --down:#f27d6b;
+    --flat:#7c8aa3;
+    --nse-blue:#5aa9e6;
+    --sme-violet:#b98ee0;
+    --radius:3px;
+  }
+  :root:not([data-theme="light"]) { color-scheme: dark; }
+  :root[data-theme="light"]{
+    --paper:#f6f4ee;
+    --paper-raised:#ffffff;
+    --paper-line:#dcd6c6;
+    --ink:#1b2231;
+    --ink-dim:#565f74;
+    --ink-faint:#8a92a5;
+    --gold:#9c7a1f;
+    --gold-dim:#c7a94f;
+    --up:#1f8f5e;
+    --down:#c14a37;
+    --flat:#6b7484;
+    --nse-blue:#1c6fb0;
+    --sme-violet:#7c4fae;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --paper:#f6f4ee;
+      --paper-raised:#ffffff;
+      --paper-line:#dcd6c6;
+      --ink:#1b2231;
+      --ink-dim:#565f74;
+      --ink-faint:#8a92a5;
+      --gold:#9c7a1f;
+      --gold-dim:#c7a94f;
+      --up:#1f8f5e;
+      --down:#c14a37;
+      --flat:#6b7484;
+      --nse-blue:#1c6fb0;
+      --sme-violet:#7c4fae;
+    }
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:14px;
+    line-height:1.5;
+    min-height:100vh;
+  }
+  ::selection{ background:var(--gold); color:#0d1420; }
+  a{ color:var(--nse-blue); }
+
+  .wrap{ max-width:1180px; margin:0 auto; padding:0 20px 80px; }
+
+  header{ border-bottom:1px solid var(--paper-line); padding:28px 0 18px; }
+  .masthead{ display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px; }
+  h1{
+    font-family:'Fraunces', serif; font-weight:600;
+    font-size:clamp(28px, 4.4vw, 42px); margin:0; letter-spacing:-0.01em; line-height:1.05;
+  }
+  h1 em{ font-style:italic; color:var(--gold); font-weight:500; }
+  .tagline{ color:var(--ink-dim); font-size:13px; margin-top:6px; max-width:46ch; }
+  .theme-toggle{
+    background:transparent; border:1px solid var(--paper-line); color:var(--ink-dim);
+    font-family:inherit; font-size:12px; padding:6px 10px; border-radius:var(--radius); cursor:pointer;
+  }
+  .theme-toggle:hover{ color:var(--ink); border-color:var(--ink-faint); }
+
+  .stat-row{
+    display:flex; gap:0; margin-top:22px; border:1px solid var(--paper-line);
+    border-radius:var(--radius); overflow:hidden; flex-wrap:wrap;
+  }
+  .stat{ flex:1 1 140px; padding:12px 16px; border-right:1px solid var(--paper-line); }
+  .stat:last-child{ border-right:none; }
+  .stat .num{ font-size:22px; font-weight:600; color:var(--ink); }
+  .stat .num.gold{ color:var(--gold); }
+  .stat .num.up{ color:var(--up); }
+  .stat .label{ font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-faint); margin-top:2px; }
+
+  /* Ticker */
+  .ticker-outer{
+    border-bottom:1px solid var(--paper-line); background:var(--paper-raised);
+    overflow:hidden; white-space:nowrap; position:relative;
+  }
+  .ticker-outer::before, .ticker-outer::after{ content:""; position:absolute; top:0; bottom:0; width:36px; z-index:2; }
+  .ticker-outer::before{ left:0; background:linear-gradient(90deg, var(--paper-raised), transparent); }
+  .ticker-outer::after{ right:0; background:linear-gradient(270deg, var(--paper-raised), transparent); }
+  .ticker-track{ display:inline-flex; animation:scroll 46s linear infinite; padding:9px 0; }
+  @media (prefers-reduced-motion: reduce){ .ticker-track{ animation:none; } }
+  .ticker-track span.item{ padding:0 22px; font-size:12.5px; color:var(--ink-dim); border-right:1px solid var(--paper-line); }
+  .ticker-track span.item b{ color:var(--ink); font-weight:500; }
+  .ticker-track span.item.pos{ color:var(--up); }
+  .ticker-track span.item.neg{ color:var(--down); }
+  @keyframes scroll{ from{ transform:translateX(0); } to{ transform:translateX(-50%); } }
+
+  /* Main view switcher */
+  .view-switch{
+    display:flex; gap:0; margin-top:22px; border:1px solid var(--paper-line);
+    border-radius:var(--radius); overflow:hidden; width:fit-content;
+  }
+  .view-switch button{
+    background:transparent; border:none; border-right:1px solid var(--paper-line);
+    color:var(--ink-dim); font-family:'Fraunces', serif; font-size:14.5px; font-weight:500;
+    padding:9px 18px; cursor:pointer;
+  }
+  .view-switch button:last-child{ border-right:none; }
+  .view-switch button.active{ background:var(--gold); color:#161011; }
+
+  section.view{ display:none; }
+  section.view.active{ display:block; }
+
+  /* Controls */
+  .controls{ margin-top:18px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .seg{ display:flex; border:1px solid var(--paper-line); border-radius:var(--radius); overflow:hidden; }
+  .seg button{
+    background:transparent; border:none; border-right:1px solid var(--paper-line);
+    color:var(--ink-dim); font-family:inherit; font-size:12px; padding:7px 12px; cursor:pointer; white-space:nowrap;
+  }
+  .seg button:last-child{ border-right:none; }
+  .seg button:hover{ color:var(--ink); }
+  .seg button.active{ background:var(--gold); color:#161011; font-weight:600; }
+  .search-box{
+    flex:1 1 200px; display:flex; align-items:center; border:1px solid var(--paper-line);
+    border-radius:var(--radius); padding:0 10px; min-width:180px;
+  }
+  .search-box input{
+    background:transparent; border:none; outline:none; color:var(--ink);
+    font-family:inherit; font-size:13px; padding:8px 6px; width:100%;
+  }
+  .search-box input::placeholder{ color:var(--ink-faint); }
+  .search-box svg{ flex-shrink:0; opacity:.5; }
+  .watch-toggle{
+    border:1px solid var(--paper-line); background:transparent; color:var(--ink-dim);
+    font-family:inherit; font-size:12px; padding:7px 12px; border-radius:var(--radius); cursor:pointer; white-space:nowrap;
+  }
+  .watch-toggle.active{ border-color:var(--gold); color:var(--gold); }
+  .count-line{ color:var(--ink-faint); font-size:11.5px; margin-top:10px; }
+
+  /* Table */
+  .table-scroll{ margin-top:14px; overflow-x:auto; border:1px solid var(--paper-line); border-radius:var(--radius); }
+  table{ width:100%; border-collapse:collapse; min-width:920px; }
+  thead th{
+    text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.07em;
+    color:var(--ink-faint); font-weight:500; padding:10px 12px; border-bottom:1px solid var(--paper-line);
+    background:var(--paper-raised); cursor:pointer; user-select:none; white-space:nowrap; position:sticky; top:0;
+  }
+  thead th:hover{ color:var(--ink-dim); }
+  thead th .arrow{ opacity:0; font-size:9px; margin-left:3px; }
+  thead th.sorted .arrow{ opacity:1; color:var(--gold); }
+  tbody tr{ border-bottom:1px solid var(--paper-line); }
+  tbody tr:last-child{ border-bottom:none; }
+  tbody tr:hover{ background:var(--paper-raised); }
+  tbody td{ padding:11px 12px; vertical-align:middle; white-space:nowrap; }
+  .name-cell{ display:flex; align-items:center; gap:8px; }
+  .star-btn{
+    background:none; border:none; cursor:pointer; color:var(--ink-faint);
+    font-size:14px; padding:0; line-height:1; flex-shrink:0;
+  }
+  .star-btn.on{ color:var(--gold); }
+  .ipo-name{ font-family:'Fraunces', serif; font-size:14.5px; color:var(--ink); font-weight:500; white-space:normal; }
+  .exch-badge{
+    display:inline-block; font-size:9.5px; text-transform:uppercase; letter-spacing:.05em;
+    padding:2px 6px; border-radius:2px; margin-left:7px; font-family:'IBM Plex Mono', monospace; vertical-align:middle;
+  }
+  .exch-badge.mb{ background:rgba(90,169,230,.15); color:var(--nse-blue); }
+  .exch-badge.sme{ background:rgba(185,142,224,.15); color:var(--sme-violet); }
+  .gmp-val{ font-weight:600; }
+  .gmp-val.pos{ color:var(--up); }
+  .gmp-val.neg{ color:var(--down); }
+  .gmp-val.flat{ color:var(--flat); }
+  .gmp-pct{ font-size:11.5px; color:var(--ink-faint); margin-left:4px; }
+  .status-pill{
+    display:inline-block; font-size:10px; text-transform:uppercase; letter-spacing:.06em;
+    padding:3px 8px; border-radius:20px; border:1px solid transparent;
+  }
+  .status-pill.open{ color:var(--up); border-color:var(--up); }
+  .status-pill.upcoming{ color:var(--gold); border-color:var(--gold); }
+  .status-pill.closed{ color:var(--ink-faint); border-color:var(--paper-line); }
+  .dates, .updated{ color:var(--ink-dim); font-size:12.5px; }
+  .empty-row td{ text-align:center; color:var(--ink-faint); padding:40px 12px; white-space:normal; }
+
+  .notes{
+    margin-top:26px; font-size:12px; color:var(--ink-dim); line-height:1.7;
+    border-top:1px solid var(--paper-line); padding-top:18px;
+  }
+  .notes strong{ color:var(--ink); }
+  .notes .srcs{ color:var(--ink-faint); margin-top:6px; }
+  .snapshot-note{
+    display:inline-flex; align-items:center; gap:6px; color:var(--gold-dim); font-size:11.5px; margin-top:14px;
+  }
+  .snapshot-dot{ width:6px;height:6px;border-radius:50%; background:var(--gold); flex-shrink:0; }
+
+  @media (max-width:640px){
+    .wrap{ padding:0 14px 60px; }
+    .stat{ flex:1 1 45%; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="masthead">
+      <div>
+        <h1>The IPO <em>Ledger</em></h1>
+        <div class="tagline">Grey market premium, price bands, subscription windows and listing-day performance for every Mainboard and SME IPO on NSE and BSE.</div>
+      </div>
+      <button class="theme-toggle" id="themeToggle">Switch to light</button>
+    </div>
+
+    <div class="stat-row" id="statRow">
+      <div class="stat"><div class="num" id="statTotal">33</div><div class="label">IPOs tracked live</div></div>
+      <div class="stat"><div class="num gold" id="statGmp">19</div><div class="label">Quoting a GMP</div></div>
+      <div class="stat"><div class="num up" id="statOpen">4</div><div class="label">Open now</div></div>
+      <div class="stat"><div class="num" id="statListed">50</div><div class="label">Recently listed tracked</div></div>
+      <div class="stat"><div class="num gold">₹192</div><div class="label">Top GMP — Kanohar Elec.</div></div>
+    </div>
+  </header>
+
+  <div class="ticker-outer">
+    <div class="ticker-track" id="tickerTrack"></div>
+  </div>
+
+  <div class="view-switch">
+    <button data-view="gmp" class="active">Live GMP</button>
+    <button data-view="listed">Recently Listed</button>
+  </div>
+
+  <!-- ===================== VIEW 1: LIVE GMP ===================== -->
+  <section class="view active" id="view-gmp">
+    <div class="controls">
+      <div class="seg" id="typeSeg">
+        <button data-type="all" class="active">All</button>
+        <button data-type="Mainboard">Mainboard</button>
+        <button data-type="SME">SME</button>
+      </div>
+      <div class="seg" id="statusSeg">
+        <button data-status="all" class="active">Any status</button>
+        <button data-status="Open">Open</button>
+        <button data-status="Upcoming">Upcoming</button>
+        <button data-status="Closed">Closed</button>
+      </div>
+      <button class="watch-toggle" id="watchToggle">☆ Watchlist only</button>
+      <div class="search-box">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="searchInput" placeholder="Search by company name…">
+      </div>
+    </div>
+    <div class="count-line" id="countLine"></div>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th data-key="name">Company <span class="arrow">▾</span></th>
+            <th data-key="type">Type <span class="arrow">▾</span></th>
+            <th data-key="priceHigh">Price band (₹) <span class="arrow">▾</span></th>
+            <th data-key="gmp">GMP <span class="arrow">▾</span></th>
+            <th data-key="estListing">Est. listing (₹) <span class="arrow">▾</span></th>
+            <th data-key="openDate">Open – Close <span class="arrow">▾</span></th>
+            <th data-key="status">Status <span class="arrow">▾</span></th>
+            <th data-key="updated">Updated <span class="arrow">▾</span></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="snapshot-note"><span class="snapshot-dot"></span> Snapshot as of 16 Sep 2026, 9:00 AM IST — data doesn't refresh on its own; ask for an update to pull fresh numbers.</div>
+
+    <div class="notes">
+      <strong>What GMP means:</strong> Grey Market Premium is an unofficial, unregulated price quoted for IPO shares before listing — it is sentiment, not a guarantee. Estimated listing price = upper price band + GMP. A "—" means no grey-market quote has been recorded for that issue. Always read the RHP and check subscription and financials before applying; this page is informational, not investment advice.
+      <div class="srcs">Sourced from IPO Ji, InvestorGain and Chittorgarh. Your star picks are saved in this browser only.</div>
+    </div>
+  </section>
+
+  <!-- ===================== VIEW 2: RECENTLY LISTED ===================== -->
+  <section class="view" id="view-listed">
+    <div class="controls">
+      <div class="search-box" style="flex:1 1 100%;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="listedSearchInput" placeholder="Search the last 50 listed IPOs…">
+      </div>
+    </div>
+    <div class="count-line" id="listedCountLine"></div>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th data-key="name">Company <span class="arrow">▾</span></th>
+            <th data-key="issuePrice">Issue price (₹) <span class="arrow">▾</span></th>
+            <th data-key="listPrice">Listing price (₹) <span class="arrow">▾</span></th>
+            <th data-key="listGain">Listing gain <span class="arrow">▾</span></th>
+            <th data-key="listDate">Listing date <span class="arrow">▾</span></th>
+            <th data-key="cmp">CMP (₹) <span class="arrow">▾</span></th>
+            <th data-key="curReturn">Return since listing <span class="arrow">▾</span></th>
+          </tr>
+        </thead>
+        <tbody id="listedTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="snapshot-note"><span class="snapshot-dot"></span> Snapshot as of 16 Sep 2026 — covers every Mainboard and SME listing back to 14 Aug 2026. CMP moves every trading session; ask for a refresh whenever you want current prices.</div>
+
+    <div class="notes">
+      <strong>Reading this table:</strong> "Listing gain" compares the exchange debut price to the issue price — what a day-one flip would have earned. "Return since listing" compares today's price (CMP) to the listing price — how the stock has actually performed since. A stock can list at a strong premium and still be underwater today, or the reverse. A "—" in CMP/Return means that figure wasn't available in this snapshot — mostly the newest, smaller SME listings that haven't had current pricing reported yet.
+      <div class="srcs">Sourced from Share.Market, Finology Ticker and IPO Ji. (Screener.in blocks automated access, so this pulls from an equivalent aggregator with the same underlying exchange data.)</div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ---------------- Live GMP dataset ---------------- */
+const DATA = [
+  {name:"Manika Plastech", type:"SME", exch:"BSE SME", priceLow:40, priceHigh:43, gmp:3, gmpPct:7, status:"Open", openDate:"11 Sep", closeDate:"16 Sep", updated:"16 Sep, 7:45 AM"},
+  {name:"Century Business Media", type:"SME", exch:"BSE SME", priceLow:70, priceHigh:74, gmp:null, gmpPct:null, status:"Open", openDate:"11 Sep", closeDate:"16 Sep", updated:"—"},
+  {name:"Injecto Polymers", type:"SME", exch:"BSE SME", priceLow:98, priceHigh:100, gmp:null, gmpPct:null, status:"Open", openDate:"11 Sep", closeDate:"16 Sep", updated:"—"},
+  {name:"Quanto Agroworld", type:"SME", exch:"BSE SME", priceLow:67, priceHigh:67, gmp:null, gmpPct:null, status:"Open", openDate:"15 Sep", closeDate:"17 Sep", updated:"—"},
+  {name:"Shakti Polytarp", type:"SME", exch:"BSE SME", priceLow:56, priceHigh:59, gmp:null, gmpPct:null, status:"Open", openDate:"15 Sep", closeDate:"17 Sep", updated:"—"},
+  {name:"Vama Wovenfab", type:"SME", exch:"BSE SME", priceLow:324, priceHigh:341, gmp:null, gmpPct:null, status:"Open", openDate:"15 Sep", closeDate:"17 Sep", updated:"—"},
+  {name:"Hero Motors", type:"Mainboard", exch:"Mainboard", priceLow:79, priceHigh:84, gmp:16, gmpPct:19, status:"Open", openDate:"16 Sep", closeDate:"18 Sep", updated:"16 Sep, 7:45 AM"},
+  {name:"Jindal Supreme (India)", type:"Mainboard", exch:"Mainboard", priceLow:88, priceHigh:93, gmp:17, gmpPct:18, status:"Open", openDate:"16 Sep", closeDate:"18 Sep", updated:"15 Sep, 10:15 PM"},
+  {name:"SS Retail", type:"Mainboard", exch:"Mainboard", priceLow:403, priceHigh:424, gmp:100, gmpPct:24, status:"Open", openDate:"16 Sep", closeDate:"18 Sep", updated:"16 Sep, 8:15 AM"},
+  {name:"Glass Wall Systems (India)", type:"Mainboard", exch:"Mainboard", priceLow:172, priceHigh:182, gmp:41, gmpPct:23, status:"Closed", openDate:"8 Sep", closeDate:"10 Sep", updated:"16 Sep, 7:45 AM"},
+  {name:"Kanohar Electricals", type:"Mainboard", exch:"Mainboard", priceLow:601, priceHigh:632, gmp:192, gmpPct:30, status:"Closed", openDate:"8 Sep", closeDate:"10 Sep", updated:"16 Sep, 7:45 AM"},
+  {name:"Prasol Chemicals", type:"Mainboard", exch:"Mainboard", priceLow:643, priceHigh:676, gmp:0, gmpPct:0, status:"Closed", openDate:"8 Sep", closeDate:"10 Sep", updated:"16 Sep, 7:45 AM"},
+  {name:"Asset Reconstruction Company (India)", type:"Mainboard", exch:"Mainboard", priceLow:132, priceHigh:139, gmp:13, gmpPct:9, status:"Closed", openDate:"9 Sep", closeDate:"11 Sep", updated:"16 Sep, 7:45 AM"},
+  {name:"Infrax Renewable", type:"SME", exch:"BSE SME", priceLow:104, priceHigh:104, gmp:null, gmpPct:null, status:"Closed", openDate:"9 Sep", closeDate:"11 Sep", updated:"—"},
+  {name:"Karamtara Engineering", type:"Mainboard", exch:"Mainboard", priceLow:241, priceHigh:254, gmp:55, gmpPct:22, status:"Closed", openDate:"9 Sep", closeDate:"11 Sep", updated:"16 Sep, 8:30 AM"},
+  {name:"LCC Projects", type:"Mainboard", exch:"Mainboard", priceLow:139, priceHigh:146, gmp:47, gmpPct:32, status:"Closed", openDate:"9 Sep", closeDate:"11 Sep", updated:"15 Sep, 11:00 PM"},
+  {name:"Manipal Payment & Identity Solutions", type:"Mainboard", exch:"Mainboard", priceLow:322, priceHigh:339, gmp:0, gmpPct:0, status:"Closed", openDate:"9 Sep", closeDate:"11 Sep", updated:"15 Sep, 5:30 PM"},
+  {name:"Rentomojo", type:"Mainboard", exch:"Mainboard", priceLow:384, priceHigh:404, gmp:125, gmpPct:31, status:"Closed", openDate:"9 Sep", closeDate:"11 Sep", updated:"16 Sep, 9:00 AM"},
+  {name:"Steamhouse India", type:"Mainboard", exch:"Mainboard", priceLow:77, priceHigh:81, gmp:19, gmpPct:23, status:"Closed", openDate:"9 Sep", closeDate:"11 Sep", updated:"15 Sep, 9:45 PM"},
+  {name:"Vinod Texworld", type:"SME", exch:"NSE SME", priceLow:94, priceHigh:94, gmp:null, gmpPct:null, status:"Closed", openDate:"9 Sep", closeDate:"11 Sep", updated:"—"},
+  {name:"Amtech Esters", type:"SME", exch:"BSE SME", priceLow:71, priceHigh:75, gmp:null, gmpPct:null, status:"Closed", openDate:"9 Sep", closeDate:"11 Sep", updated:"—"},
+  {name:"Maharaja Speedex India", type:"SME", exch:"BSE SME", priceLow:177, priceHigh:186, gmp:21, gmpPct:11, status:"Closed", openDate:"10 Sep", closeDate:"15 Sep", updated:"16 Sep, 8:30 AM"},
+  {name:"Om Galaxy", type:"SME", exch:"BSE SME", priceLow:85, priceHigh:90, gmp:null, gmpPct:null, status:"Closed", openDate:"10 Sep", closeDate:"15 Sep", updated:"—"},
+  {name:"Panchatv Bharat", type:"SME", exch:"BSE SME", priceLow:140, priceHigh:140, gmp:null, gmpPct:null, status:"Closed", openDate:"10 Sep", closeDate:"15 Sep", updated:"—"},
+  {name:"Raksan Transformers", type:"SME", exch:"BSE SME", priceLow:258, priceHigh:273, gmp:36, gmpPct:13, status:"Closed", openDate:"10 Sep", closeDate:"15 Sep", updated:"16 Sep, 8:30 AM"},
+  {name:"Veegaland Developers", type:"Mainboard", exch:"Mainboard", priceLow:130, priceHigh:140, gmp:8, gmpPct:6, status:"Closed", openDate:"10 Sep", closeDate:"15 Sep", updated:"16 Sep, 7:45 AM"},
+  {name:"NSE", type:"Mainboard", exch:"Mainboard", priceLow:1700, priceHigh:1785, gmp:165, gmpPct:9, status:"Upcoming", openDate:"17 Sep", closeDate:"21 Sep", updated:"16 Sep, 7:45 AM"},
+  {name:"Sonaselection India", type:"Mainboard", exch:"Mainboard", priceLow:94, priceHigh:99, gmp:5, gmpPct:5, status:"Upcoming", openDate:"17 Sep", closeDate:"21 Sep", updated:"15 Sep, 1:00 PM"},
+  {name:"Kheria Autocomp", type:"SME", exch:"NSE SME", priceLow:96, priceHigh:101, gmp:null, gmpPct:null, status:"Upcoming", openDate:"17 Sep", closeDate:"21 Sep", updated:"—"},
+  {name:"SpectraA Technology Solutions", type:"SME", exch:"NSE SME", priceLow:112, priceHigh:118, gmp:null, gmpPct:null, status:"Upcoming", openDate:"17 Sep", closeDate:"21 Sep", updated:"—"},
+  {name:"Axiom Gas Engineering", type:"SME", exch:"NSE SME", priceLow:50, priceHigh:53, gmp:null, gmpPct:null, status:"Upcoming", openDate:"18 Sep", closeDate:"22 Sep", updated:"—"},
+  {name:"Robokidz Eduventures", type:"SME", exch:"BSE SME", priceLow:100, priceHigh:106, gmp:24, gmpPct:23, status:"Upcoming", openDate:"21 Sep", closeDate:"23 Sep", updated:"16 Sep, 8:30 AM"},
+  {name:"A-One Steels India", type:"Mainboard", exch:"Mainboard", priceLow:null, priceHigh:null, gmp:null, gmpPct:null, status:"Upcoming", openDate:"24 Sep", closeDate:"28 Sep", updated:"—"},
+];
+DATA.forEach(d => { d.estListing = (d.priceHigh != null && d.gmp != null) ? d.priceHigh + d.gmp : null; });
+
+/* ---------------- Recently Listed dataset (last 50) ---------------- */
+const LISTED = [
+  {name:"Kanohar Electricals", issuePrice:632, listPrice:672.05, listGain:6.34, listDate:"2026-09-16", cmp:null, curReturn:null},
+  {name:"Prasol Chemicals", issuePrice:676, listPrice:610.00, listGain:-9.76, listDate:"2026-09-16", cmp:null, curReturn:null},
+  {name:"Glass Wall Systems (India)", issuePrice:182, listPrice:190.10, listGain:4.45, listDate:"2026-09-16", cmp:null, curReturn:null},
+  {name:"Apana Logistics", issuePrice:60, listPrice:60.00, listGain:0, listDate:"2026-09-15", cmp:null, curReturn:null},
+  {name:"Pranav Constructions", issuePrice:124, listPrice:162.00, listGain:30.65, listDate:"2026-09-15", cmp:null, curReturn:null},
+  {name:"Qualiance International", issuePrice:127, listPrice:224.90, listGain:77.09, listDate:"2026-09-11", cmp:null, curReturn:null},
+  {name:"Fly Hi Maritime Travels", issuePrice:102, listPrice:81.60, listGain:-20.00, listDate:"2026-09-08", cmp:null, curReturn:null},
+  {name:"Rays Of Belief", issuePrice:239, listPrice:239.00, listGain:0, listDate:"2026-09-08", cmp:null, curReturn:null},
+  {name:"Deepa Jewellers", issuePrice:177, listPrice:221.00, listGain:24.86, listDate:"2026-09-08", cmp:null, curReturn:null},
+  {name:"Farm Peace", issuePrice:59, listPrice:112.10, listGain:90.00, listDate:"2026-09-08", cmp:null, curReturn:null},
+  {name:"Shanti Inorganics", issuePrice:83, listPrice:157.70, listGain:90.00, listDate:"2026-09-07", cmp:null, curReturn:null},
+  {name:"Purple Style Labs", issuePrice:575, listPrice:539.00, listGain:-6.26, listDate:"2026-09-07", cmp:null, curReturn:null},
+  {name:"Ashutosh Fibre", issuePrice:92, listPrice:140.00, listGain:52.17, listDate:"2026-09-07", cmp:null, curReturn:null},
+  {name:"Phychem Technologies", issuePrice:54, listPrice:56.00, listGain:3.70, listDate:"2026-09-07", cmp:null, curReturn:null},
+  {name:"Paluck Technologies", issuePrice:48, listPrice:46.80, listGain:-2.50, listDate:"2026-09-04", cmp:null, curReturn:null},
+  {name:"ESDS Software Solution", issuePrice:429, listPrice:757.00, listGain:76.46, listDate:"2026-09-04", cmp:null, curReturn:null},
+  {name:"Priority Jewels", issuePrice:200, listPrice:230.00, listGain:15.00, listDate:"2026-09-04", cmp:null, curReturn:null},
+  {name:"Complete Sports And Management India", issuePrice:135, listPrice:139.00, listGain:2.96, listDate:"2026-09-04", cmp:null, curReturn:null},
+  {name:"Kwick Forensic Solutions", issuePrice:90, listPrice:150.00, listGain:66.67, listDate:"2026-09-03", cmp:null, curReturn:null},
+  {name:"Lumino Industries", issuePrice:82, listPrice:110.00, listGain:34.15, listDate:"2026-09-03", cmp:null, curReturn:null},
+  {name:"Sumax Engineering", issuePrice:101, listPrice:111.00, listGain:9.90, listDate:"2026-09-02", cmp:null, curReturn:null},
+  {name:"Annu Projects", issuePrice:99, listPrice:72.00, listGain:-27.27, listDate:"2026-09-02", cmp:68.23, curReturn:-31.08},
+  {name:"Symbiotec Pharmalab", issuePrice:988, listPrice:988.00, listGain:0, listDate:"2026-09-01", cmp:1067, curReturn:8},
+  {name:"Hy-Tech Engineers", issuePrice:53, listPrice:75.00, listGain:41.51, listDate:"2026-09-01", cmp:72.3, curReturn:36.42},
+  {name:"ABH Healthcare", issuePrice:102, listPrice:99.00, listGain:-2.94, listDate:"2026-09-01", cmp:null, curReturn:null},
+  {name:"Skyways Air Services", issuePrice:138, listPrice:124.00, listGain:-10.14, listDate:"2026-09-01", cmp:131.17, curReturn:-4.95},
+  {name:"Madhur Knit Crafts", issuePrice:100, listPrice:100.00, listGain:0, listDate:"2026-09-01", cmp:null, curReturn:null},
+  {name:"Augmont Enterprises", issuePrice:788, listPrice:961.00, listGain:21.95, listDate:"2026-08-31", cmp:925.4, curReturn:17.44},
+  {name:"Tempsens Instruments (India)", issuePrice:300, listPrice:634.00, listGain:111.33, listDate:"2026-08-28", cmp:563.35, curReturn:87.78},
+  {name:"Gaja Alternative Asset Management", issuePrice:160, listPrice:185.00, listGain:15.63, listDate:"2026-08-26", cmp:158.94, curReturn:-0.66},
+  {name:"Dhanwel Hybrid Seeds", issuePrice:99, listPrice:99.00, listGain:0, listDate:"2026-08-26", cmp:null, curReturn:null},
+  {name:"Mopshop Distribution", issuePrice:138, listPrice:137.00, listGain:-0.72, listDate:"2026-08-26", cmp:null, curReturn:null},
+  {name:"Shankesh Jewellers", issuePrice:93, listPrice:102.20, listGain:9.89, listDate:"2026-08-25", cmp:99.91, curReturn:7.43},
+  {name:"Sunshine Pictures", issuePrice:360, listPrice:394.00, listGain:9.44, listDate:"2026-08-25", cmp:453.9, curReturn:26.08},
+  {name:"Lalithaa Jewellery Mart", issuePrice:201, listPrice:265.00, listGain:31.84, listDate:"2026-08-24", cmp:291.3, curReturn:44.93},
+  {name:"Horizon Industrial Parks", issuePrice:60, listPrice:60.25, listGain:0.42, listDate:"2026-08-24", cmp:54.81, curReturn:-8.65},
+  {name:"Fascinate Textiles", issuePrice:151, listPrice:120.80, listGain:-20.00, listDate:"2026-08-24", cmp:null, curReturn:null},
+  {name:"Ens Enterprises", issuePrice:92, listPrice:96.00, listGain:4.35, listDate:"2026-08-21", cmp:null, curReturn:null},
+  {name:"Technocrats Plasma Systems", issuePrice:132, listPrice:230.00, listGain:74.24, listDate:"2026-08-21", cmp:null, curReturn:null},
+  {name:"Skytech Infinite Platform", issuePrice:77, listPrice:74.00, listGain:-3.90, listDate:"2026-08-21", cmp:null, curReturn:null},
+  {name:"Credent Connect N Care", issuePrice:189, listPrice:359.10, listGain:90.00, listDate:"2026-08-20", cmp:null, curReturn:null},
+  {name:"Behari Lal Engineering", issuePrice:285, listPrice:465.00, listGain:63.16, listDate:"2026-08-19", cmp:449.55, curReturn:57.74},
+  {name:"Q&T Foods", issuePrice:115, listPrice:115.00, listGain:0, listDate:"2026-08-19", cmp:null, curReturn:null},
+  {name:"Pramodini Medicare", issuePrice:118, listPrice:120.00, listGain:1.69, listDate:"2026-08-19", cmp:null, curReturn:null},
+  {name:"Shiprocket", issuePrice:97, listPrice:131.00, listGain:35.05, listDate:"2026-08-19", cmp:134.82, curReturn:38.99},
+  {name:"Milky Mist Dairy Food", issuePrice:140, listPrice:165.00, listGain:17.86, listDate:"2026-08-18", cmp:253.8, curReturn:81.29},
+  {name:"Sham Foam", issuePrice:130, listPrice:104.00, listGain:-20.00, listDate:"2026-08-18", cmp:null, curReturn:null},
+  {name:"Molbio Diagnostics", issuePrice:807, listPrice:980.00, listGain:21.44, listDate:"2026-08-17", cmp:1137.2, curReturn:40.92},
+  {name:"Dhoot Transmission", issuePrice:871, listPrice:1193.80, listGain:37.06, listDate:"2026-08-17", cmp:1605.8, curReturn:84.36},
+];
+
+/* ---------------- shared state ---------------- */
+let state = { type:"all", status:"all", search:"", sortKey:"gmp", sortDir:"desc", watchOnly:false };
+let listedState = { search:"", sortKey:"listDate", sortDir:"desc" };
+let watchlist = new Set();
+try {
+  const saved = localStorage.getItem("ipoLedgerWatchlist");
+  if (saved) watchlist = new Set(JSON.parse(saved));
+} catch(e){ /* storage unavailable, continue without persistence */ }
+function saveWatchlist(){
+  try { localStorage.setItem("ipoLedgerWatchlist", JSON.stringify([...watchlist])); } catch(e){ /* ignore */ }
+}
+
+function fmtPrice(d){
+  if (d.priceLow == null) return "TBA";
+  if (d.priceLow === d.priceHigh) return d.priceLow;
+  return d.priceLow + "–" + d.priceHigh;
+}
+function gmpClass(d){
+  if (d.gmp == null) return "flat";
+  if (d.gmp > 0) return "pos";
+  if (d.gmp < 0) return "neg";
+  return "flat";
+}
+function escapeAttr(s){ return s.replace(/"/g, "&quot;"); }
+
+/* ---------------- render: Live GMP ---------------- */
+function render(){
+  const body = document.getElementById("tableBody");
+  let rows = DATA.filter(d => {
+    if (state.type !== "all" && d.type !== state.type) return false;
+    if (state.status !== "all" && d.status !== state.status) return false;
+    if (state.watchOnly && !watchlist.has(d.name)) return false;
+    if (state.search && !d.name.toLowerCase().includes(state.search.toLowerCase())) return false;
+    return true;
+  });
+  rows.sort((a,b) => {
+    let av = a[state.sortKey], bv = b[state.sortKey];
+    if (state.sortKey === "name"){ av = a.name; bv = b.name; }
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    if (typeof av === "string") return state.sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+    return state.sortDir === "asc" ? av - bv : bv - av;
+  });
+  document.getElementById("countLine").textContent = rows.length + " of " + DATA.length + " IPOs shown";
+  if (rows.length === 0){
+    body.innerHTML = '<tr class="empty-row"><td colspan="8">No IPOs match these filters. Try clearing the search or switching status.</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map(d => {
+    const starred = watchlist.has(d.name);
+    const gc = gmpClass(d);
+    const gmpText = d.gmp == null ? "—" : (d.gmp > 0 ? "+₹"+d.gmp : "₹"+d.gmp);
+    const gmpPctText = d.gmpPct == null ? "" : '<span class="gmp-pct">('+(d.gmpPct>0?"+":"")+d.gmpPct+"%)</span>";
+    const badgeClass = d.type === "Mainboard" ? "mb" : "sme";
+    return `<tr>
+      <td><div class="name-cell">
+        <button class="star-btn ${starred?'on':''}" data-name="${escapeAttr(d.name)}">${starred?'★':'☆'}</button>
+        <span class="ipo-name">${d.name}</span>
+        <span class="exch-badge ${badgeClass}">${d.exch}</span>
+      </div></td>
+      <td>${d.type}</td>
+      <td>${fmtPrice(d)}</td>
+      <td><span class="gmp-val ${gc}">${gmpText}</span>${gmpPctText}</td>
+      <td>${d.estListing != null ? "₹"+d.estListing : "—"}</td>
+      <td class="dates">${d.openDate} – ${d.closeDate}</td>
+      <td><span class="status-pill ${d.status.toLowerCase()}">${d.status}</span></td>
+      <td class="updated">${d.updated}</td>
+    </tr>`;
+  }).join("");
+  body.querySelectorAll(".star-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const n = btn.getAttribute("data-name");
+      if (watchlist.has(n)) watchlist.delete(n); else watchlist.add(n);
+      saveWatchlist();
+      render();
+    });
+  });
+}
+
+/* ---------------- render: Recently Listed ---------------- */
+function renderListed(){
+  const body = document.getElementById("listedTableBody");
+  let rows = LISTED.filter(d => !listedState.search || d.name.toLowerCase().includes(listedState.search.toLowerCase()));
+  rows.sort((a,b) => {
+    let av = a[listedState.sortKey], bv = b[listedState.sortKey];
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    if (typeof av === "string") return listedState.sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+    return listedState.sortDir === "asc" ? av - bv : bv - av;
+  });
+  document.getElementById("listedCountLine").textContent = rows.length + " of " + LISTED.length + " recently listed IPOs shown";
+  if (rows.length === 0){
+    body.innerHTML = '<tr class="empty-row"><td colspan="7">No listed IPOs match that search.</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map(d => {
+    const gainCls = d.listGain > 0 ? "pos" : (d.listGain < 0 ? "neg" : "flat");
+    const hasReturn = d.curReturn != null;
+    const retCls = !hasReturn ? "flat" : (d.curReturn > 0 ? "pos" : (d.curReturn < 0 ? "neg" : "flat"));
+    const cmpText = d.cmp != null ? "₹"+d.cmp : "—";
+    const retText = hasReturn ? (d.curReturn>0?"+":"")+d.curReturn.toFixed(2)+"%" : "—";
+    return `<tr>
+      <td><span class="ipo-name">${d.name}</span></td>
+      <td>₹${d.issuePrice}</td>
+      <td>₹${d.listPrice}</td>
+      <td><span class="gmp-val ${gainCls}">${d.listGain>0?"+":""}${d.listGain.toFixed(2)}%</span></td>
+      <td class="dates">${d.listDate}</td>
+      <td>${cmpText}</td>
+      <td><span class="gmp-val ${retCls}">${retText}</span></td>
+    </tr>`;
+  }).join("");
+}
+
+/* ---------------- controls: GMP view ---------------- */
+document.getElementById("typeSeg").addEventListener("click", e => {
+  const btn = e.target.closest("button"); if (!btn) return;
+  state.type = btn.getAttribute("data-type");
+  document.querySelectorAll("#typeSeg button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active"); render();
+});
+document.getElementById("statusSeg").addEventListener("click", e => {
+  const btn = e.target.closest("button"); if (!btn) return;
+  state.status = btn.getAttribute("data-status");
+  document.querySelectorAll("#statusSeg button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active"); render();
+});
+document.getElementById("watchToggle").addEventListener("click", () => {
+  state.watchOnly = !state.watchOnly;
+  const btn = document.getElementById("watchToggle");
+  btn.classList.toggle("active", state.watchOnly);
+  btn.textContent = state.watchOnly ? "★ Watchlist only" : "☆ Watchlist only";
+  render();
+});
+document.getElementById("searchInput").addEventListener("input", e => { state.search = e.target.value; render(); });
+document.querySelectorAll("#view-gmp thead th[data-key]").forEach(th => {
+  th.addEventListener("click", () => {
+    const key = th.getAttribute("data-key");
+    if (state.sortKey === key) state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+    else { state.sortKey = key; state.sortDir = "desc"; }
+    document.querySelectorAll("#view-gmp thead th").forEach(h => h.classList.remove("sorted"));
+    th.classList.add("sorted");
+    th.querySelector(".arrow").textContent = state.sortDir === "asc" ? "▴" : "▾";
+    render();
+  });
+});
+
+/* ---------------- controls: Listed view ---------------- */
+document.getElementById("listedSearchInput").addEventListener("input", e => { listedState.search = e.target.value; renderListed(); });
+document.querySelectorAll("#view-listed thead th[data-key]").forEach(th => {
+  th.addEventListener("click", () => {
+    const key = th.getAttribute("data-key");
+    if (listedState.sortKey === key) listedState.sortDir = listedState.sortDir === "asc" ? "desc" : "asc";
+    else { listedState.sortKey = key; listedState.sortDir = "desc"; }
+    document.querySelectorAll("#view-listed thead th").forEach(h => h.classList.remove("sorted"));
+    th.classList.add("sorted");
+    th.querySelector(".arrow").textContent = listedState.sortDir === "asc" ? "▴" : "▾";
+    renderListed();
+  });
+});
+
+/* ---------------- view switcher ---------------- */
+document.querySelectorAll(".view-switch button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".view-switch button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    const view = btn.getAttribute("data-view");
+    document.getElementById("view-gmp").classList.toggle("active", view === "gmp");
+    document.getElementById("view-listed").classList.toggle("active", view === "listed");
+  });
+});
+
+/* ---------------- theme toggle ---------------- */
+const themeBtn = document.getElementById("themeToggle");
+themeBtn.addEventListener("click", () => {
+  const root = document.documentElement;
+  const current = root.getAttribute("data-theme");
+  if (current === "light"){ root.setAttribute("data-theme", "dark"); themeBtn.textContent = "Switch to light"; }
+  else { root.setAttribute("data-theme", "light"); themeBtn.textContent = "Switch to dark"; }
+});
+
+/* ---------------- ticker ---------------- */
+const tickerNames = DATA.filter(d => d.gmp != null).sort((a,b)=>b.gmp-a.gmp);
+const tickerHtml = tickerNames.map(d => {
+  const cls = d.gmp > 0 ? "pos" : (d.gmp < 0 ? "neg" : "");
+  const sign = d.gmp > 0 ? "+" : "";
+  return `<span class="item ${cls}"><b>${d.name}</b> &nbsp;${sign}₹${d.gmp} (${sign}${d.gmpPct}%)</span>`;
+}).join("");
+document.getElementById("tickerTrack").innerHTML = tickerHtml + tickerHtml;
+
+/* ---------------- stats ---------------- */
+document.getElementById("statTotal").textContent = DATA.length;
+document.getElementById("statGmp").textContent = DATA.filter(d=>d.gmp!=null).length;
+document.getElementById("statOpen").textContent = DATA.filter(d=>d.status==="Open").length;
+document.getElementById("statListed").textContent = LISTED.length;
+
+/* initial sort arrows */
+document.querySelector('#view-gmp thead th[data-key="gmp"]').classList.add("sorted");
+document.querySelector('#view-gmp thead th[data-key="gmp"] .arrow').textContent = "▾";
+document.querySelector('#view-listed thead th[data-key="listDate"]').classList.add("sorted");
+document.querySelector('#view-listed thead th[data-key="listDate"] .arrow').textContent = "▾";
+
+render();
+renderListed();
+
+/* ---------------- PWA: register service worker if available ---------------- */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* not hosted here yet — fine */ });
+  });
+}
+</script>
+</body>
+</html>
